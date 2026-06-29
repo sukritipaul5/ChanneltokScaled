@@ -1,0 +1,12 @@
+# GPT-B on ImageNet-100k with 16K BSQ tokenizer (256 tokens, fixed length)
+
+defaults:
+  - base
+
+gpt_model: "GPT-B"
+global_batch_size: 256
+epochs: 300
+lr: 0.0004
+visualize_every: 5000
+ckpt_every: 5000
+wandb_name: "in100k-16k-gptb-256tok-final"

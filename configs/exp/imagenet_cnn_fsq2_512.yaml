@@ -1,0 +1,100 @@
+# ImageNet WebDataset Experiment Configuration
+
+defaults:
+  - base
+
+# Model configuration with FSQ quantizer
+model:
+  name: "VQGANAutoencoder"
+  latent_dim: 512
+
+  use_latent_mask: true
+  t_min: 0.002
+  t_max: 1.0
+  latent_mask_prob: 0.5
+
+  quantizer: "FSQ2"  # Use Lookup Free Quantization
+
+  # FSQ specific options
+  quantizer_levels: [8,8,8,5,5,5]
+  num_codebooks: 1
+  keep_num_codebooks_dim: false
+  quantizer_scale: null
+  quantize_channels: true
+  image_channels: 3
+
+  input_resolution: 256
+  target_spatial_size: 4
+  quantizer_dim: 16  # this is spatial latent size for channelwise (4x4=16)
+
+
+  #attn switched off.
+  #VQGAN options
+  use_flash_attn: false
+  use_intermediate_attn: false
+  use_final_attn: false
+  flash_attn_heads: 8
+
+
+# Data configuration for WebDataset
+data:
+  dataset: imagenet_wds  # Switch to WebDataset loader
+  hf_root: "/home/ubuntu/imagenet/datasets--timm--imagenet-1k-wds/snapshots/cdf403ce12f01022a0c36e584e588c0b9cebc4af/"  # Path to WebDataset shards
+  train_glob: "imagenet1k-train-*.tar"
+  val_glob: "imagenet1k-validation-*.tar"
+  batch_size: 64
+  num_workers: 8  # Reduce workers to test if dataloader is leaking
+  persistent_workers: true
+  pin_memory: true
+  shuffle: true
+  img_size: 256
+  val_resize: 256
+  # Fallback when iterable dataloader has no __len__
+  steps_per_epoch: 5000
+
+# Training configuration overrides (inherits other defaults from base)
+training:
+  max_epochs: 300
+  learning_rate: 2e-3
+  precision: "bf16-mixed"  # Use bf16-mixed for H100, or 16-mixed for other GPUs
+  accelerator: "gpu"
+  devices: -1
+  strategy: "ddp"
+  sync_batchnorm: true
+  compile_model: true #false
+  gradient_as_bucket_view: true
+
+  #we experience slow down in train time every epoch. So reset the loop every 5 epochs.
+  reset_train_epoch: 5
+
+  lr_scheduler:
+    type: "cosine_warmup"
+    warmup_steps: 5000
+    init_lr: 1e-5
+    peak_lr: 2e-3
+    min_lr: 8e-4
+
+
+# Loss configuration
+loss:
+  loss_list: ["l1", "perceptual"]
+  loss_weights: [1.0,0.3] #[1.0 ,0.01]
+
+# Logging configuration
+logging:
+  name: "imagenet_wds_512_l1_cnn_fsq2"
+  project: "flextok"
+  tags: ["imagenet", "webdataset", "512_l1", "cnn", "fsq2"]
+  log_every_n_steps: 50
+  log_viz_every: 1000
+  use_wandb: true
+
+# Output/checkpoint config
+output_dir: "./outputs/imagenet_wds_512_l1_cnn_fsq2"
+
+# Resume behavior
+resume: true
+resume_from: null
+
+# Execution mode
+mode: "train"

@@ -1,0 +1,54 @@
+[project]
+name = "mask-git-juhu"
+version = "0.1.0"
+description = "ChannelTok: Efficient Flexible-Length Vision Tokenization"
+requires-python = ">=3.10"
+readme = "README.md"
+license = {text = "MIT"}
+
+dependencies = [
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "torchmetrics>=1.0.0",
+    "numpy>=1.20.0",
+    "tqdm>=4.62.0",
+    "matplotlib>=3.5.0",
+    "pillow>=9.0.0",
+    "pyyaml>=6.0",
+    "omegaconf>=2.0.0",
+    "einops>=0.6.0",
+    "einx",
+    "wandb>=0.13.0",
+    "lpips>=0.1.4",
+    "clean-fid>=0.1.35",
+    "psutil",
+]
+
+[project.optional-dependencies]
+dali = [
+    "nvidia-dali-cuda120",
+    "webdataset>=0.2.0",
+]
+dev = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "isort>=5.10.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel>=0.37.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+exclude = ["configs*", "scripts*", "checkpoints*"]
+
+[tool.uv]
+extra-index-url = ["https://pypi.nvidia.com"]
+
+[tool.black]
+line-length = 88
+target-version = ["py310"]
+
+[tool.isort]
+profile = "black"
+line_length = 88

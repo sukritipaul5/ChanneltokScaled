@@ -1,0 +1,102 @@
+# FSQ (Finite Scalar Quantization) - Medium model on ImageNet-100k
+# Stage 1 (0-24 epochs): 0.25*L1 + 1.0*LPIPS
+# Stage 2 (25+ epochs): 0.25*L1 + 1.0*LPIPS + 0.05*GAN
+
+defaults:
+  - base
+
+model:
+  name: "VQGANAutoencoder"
+  latent_dim: 256
+
+  # Latent masking for flexible-length tokens
+  use_latent_mask: true
+  sampling_strategy: "uniform"
+  t_min: 0.002
+  t_max: 1.0
+  latent_mask_prob: 0.5
+
+  # FSQ quantizer
+  quantizer: "FSQ"
+  quantizer_levels: [8, 8, 8, 5, 5, 5]  # 8*8*8*5*5*5 = 64000 (~64K codebook)
+  num_codebooks: 1
+  keep_num_codebooks_dim: false
+  quantizer_scale: null
+  use_conv_projections: true
+
+  # Channelwise quantization
+  quantize_channels: true
+  quantizer_dim: 16  # 4x4 spatial size
+
+  # Image settings
+  image_channels: 3
+  input_resolution: 256
+  target_spatial_size: 4
+
+  encoder_channels: [32, 128, 256, 256, 256]
+  encoder_attn_resolutions: [8]
+  decoder_channels: [32, 128, 256, 256, 256]
+  decoder_attn_resolutions: [8]
+
+  # Transformer-style attention blocks
+  use_flash_attn: true
+  use_intermediate_attn: false
+  use_final_attn: true
+  flash_attn_heads: 8
+
+data:
+  dataset: imagefolder
+  data_dir: "/mnt/data/mask-git-juhu/data/imagenet100k_merged"
+  train_index_subdir: "train"
+  val_index_subdir: "val"
+
+  batch_size: 32
+  num_workers: 8
+  persistent_workers: true
+  pin_memory: true
+  shuffle: true
+  img_size: 256
+  val_resize: 256
+
+training:
+  max_epochs: 100
+  learning_rate: 1e-3
+  discriminator_lr: 5e-5
+  precision: "bf16-mixed"
+  accelerator: "gpu"
+  devices: -1
+  strategy: "ddp"
+  sync_batchnorm: true
+  compile_model: true
+  weight_decay: 0.01
+  reset_train_epoch: 1
+
+  lr_scheduler:
+    type: "cosine_warmup"
+    warmup_steps: 5000
+    init_lr: 1e-6
+    peak_lr: 1e-3
+    min_lr: 5e-5
+
+loss:
+  loss_list: ["l1", "perceptual"]
+  loss_weights: [0.25, 1.0]
+  use_gan: true
+  gan_start_epoch: 25
+  gan_loss_weight: 0.05
+  discriminator_channels: 64
+  discriminator_layers: 3
+
+logging:
+  name: "imagenet100k-fsq-medium-ablation"
+  project: "flextok"
+  tags: ["imagenet100k", "fsq", "medium", "quantizer_ablation"]
+  log_every_n_steps: 50
+  log_viz_every: 5000
+  use_wandb: true
+
+output_dir: "/mnt/data/mask-git-juhu/outputs/quantizer_ablation/fsq"
+
+resume: true
+resume_from: null
+mode: "train"

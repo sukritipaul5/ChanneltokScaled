@@ -1,0 +1,49 @@
+# Base configuration for all experiments
+# This file contains common defaults that can be overridden in specific experiment configs
+
+# Execution mode: train, test, debug
+mode: "train"
+
+# Data configuration
+data:
+  data_dir: "/workspace/data/1000_images/"
+  batch_size: 8
+  num_workers: 4
+  img_size: 256
+
+# Training configuration  
+training:
+  max_epochs: 5
+  learning_rate: 1e-3
+  precision: 16
+  accelerator: "gpu"
+  devices: -1
+  strategy: "ddp"
+  sync_batchnorm: true
+
+# Loss configuration
+loss:
+  perceptual_loss_weight: 0.1
+
+# Logging configuration
+logging:
+  use_wandb: true
+  project: "flextok"
+  log_every_n_steps: 10
+  log_viz_every: 1000  # Log visualizations every N steps
+
+# Model configuration (will be overridden by specific experiments)
+model:
+  name: null  # Must be specified in experiment config
+  image_size: 256
+  image_channels: 3
+
+# Output directory for checkpoints and logs
+output_dir: "./outputs"
+
+# Optional initialization weights for starting from a pretrained checkpoint
+init_weights: null
+
+# Resume training settings
+resume: true  # If true, automatically resume from last.ckpt if it exists
+resume_from: null  # Override: specific path to checkpoint, or "last" for last.ckpt

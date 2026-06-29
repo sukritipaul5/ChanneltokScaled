@@ -1,0 +1,122 @@
+# Large ImageNet config with BSQ, expanded networks, and two-stage GAN training
+# Stage 1 (0-14 epochs): 0.25*L1 + 1.0*LPIPS
+# Stage 2 (15+ epochs): 0.25*L1 + 1.0*LPIPS + 0.1*GAN
+
+defaults:
+  - base
+
+# Large model with transformer blocks
+model:
+  name: "VQGANAutoencoder"
+  latent_dim: 1024
+
+  # Latent masking for flexible-length tokens
+  use_latent_mask: true
+  sampling_strategy: "uniform"
+  t_min: 0.002
+  t_max: 1.0
+  latent_mask_prob: 0.5
+
+  # BSQ quantizer (Binary Spherical Quantization)
+  quantizer: "BSQ"
+  codebook_size: 65536  # 2^16
+  entropy_loss_weight: 0.1
+  commitment_loss_weight: 0.25
+  diversity_gamma: 1.0
+
+  # Channelwise quantization
+  quantizer_dim: 16  # 4x4 spatial size
+  num_codebooks: 1
+  keep_num_codebooks_dim: false
+  quantize_channels: true
+
+  # Image settings
+  image_channels: 3
+  input_resolution: 256
+  target_spatial_size: 4
+
+  # # Expanded encoder: wider channels with more capacity
+  # encoder_channels: [192, 256, 384, 512, 640]
+  # encoder_attn_resolutions: [32, 16, 8]  # Multi-scale attention
+
+  # # Expanded decoder: wider channels
+  # decoder_channels: [192, 256, 384, 512, 640]
+  # decoder_attn_resolutions: [8, 16, 32]  # Multi-scale attention
+
+  # Transformer-style attention blocks
+  use_flash_attn: true
+  use_intermediate_attn: false
+  use_final_attn: true
+  flash_attn_heads: 8
+
+# ImageNet WebDataset configuration
+data:
+  dataset: imagefolder
+  data_dir: "/scratch/imagenet100/"
+  train_index_subdir: "train"
+  val_index_subdir: "val"
+
+  batch_size: 32
+  num_workers: 8
+  persistent_workers: true
+  pin_memory: true
+  shuffle: true
+  img_size: 256
+  val_resize: 256
+
+# Training configuration
+training:
+  max_epochs: 100
+  learning_rate: 1e-3
+  discriminator_lr: 1e-4  # Lower LR for discriminator
+  precision: "bf16-mixed"
+  accelerator: "gpu"
+  devices: -1
+  strategy: "ddp"
+  sync_batchnorm: true
+  compile_model: true
+  weight_decay: 0.01
+
+  # Reset every epoch to avoid slowdown
+  reset_train_epoch: 1
+
+  # Learning rate scheduler with warmup
+  lr_scheduler:
+    type: "cosine_warmup"
+    warmup_steps: 5000
+    init_lr: 1e-6
+    peak_lr: 1e-3
+    min_lr: 5e-5
+
+# Two-stage loss configuration
+loss:
+  # Stage 1 (epochs 0-14): 0.25*L1 + 1.0*LPIPS
+  # Stage 2 (epoch 15+): 0.25*L1 + 1.0*LPIPS + 0.1*GAN (applied manually)
+  loss_list: ["l1", "perceptual"]
+  loss_weights: [0.25, 1.0]
+
+  # GAN settings (applied manually in training loop)
+  use_gan: true
+  gan_start_epoch: 15
+  gan_loss_weight: 0.1
+  discriminator_channels: 64
+  discriminator_layers: 3
+
+# Logging
+logging:
+  name: "imagenet_bsq_ch_ablation_1024"
+  project: "flextok"
+  tags: ["imagenet", "bsq", "ch_ablation", "1024"]
+  log_every_n_steps: 50
+  log_viz_every: 5000
+  use_wandb: true
+
+# Output directory
+output_dir: "/scratch/outputs/imagenet_bsq_ch_ablation_1024"
+
+# Resume settings
+resume: true
+resume_from: null
+
+# Mode
+mode: "train"

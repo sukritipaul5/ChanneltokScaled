@@ -1,0 +1,80 @@
+defaults: [base]
+
+model:
+  name: VQGANAutoencoder
+  latent_dim: 512
+  image_channels: 3
+  input_resolution: 256
+  target_spatial_size: 4
+
+  # No flexible-length masking
+  use_latent_mask: false
+
+  # BSQ quantizer
+  quantizer: BSQ
+  codebook_size: 65536
+  entropy_loss_weight: 0.1
+  commitment_loss_weight: 0.25
+  diversity_gamma: 1.0
+  quantizer_dim: 16
+  num_codebooks: 1
+  keep_num_codebooks_dim: false
+  quantize_channels: true
+
+  # Encoder
+  encoder_channels: [192, 256, 384, 512, 640]
+  encoder_attn_resolutions: [32, 16, 8]
+
+  # Decoder
+  decoder_channels: [192, 256, 384, 512, 640]
+  decoder_attn_resolutions: [8, 16, 32]
+
+  # Attention
+  use_flash_attn: true
+  use_intermediate_attn: true
+  use_final_attn: true
+  flash_attn_heads: 8
+
+data:
+  dataset: imagefolder
+  data_dir: null  # path to ImageNet (should contain train/ and val/ subdirs)
+  batch_size: 32
+  num_workers: 8
+  img_size: 256
+  val_resize: 256
+
+# Training (for retraining from scratch)
+training:
+  max_epochs: 150
+  learning_rate: 1e-3
+  discriminator_lr: 1e-4
+  precision: "bf16-mixed"
+  accelerator: "gpu"
+  devices: -1
+  strategy: "ddp"
+  sync_batchnorm: true
+  compile_model: true
+  weight_decay: 0.01
+  reset_train_epoch: 1
+  lr_scheduler:
+    type: "cosine_warmup"
+    warmup_steps: 5000
+    init_lr: 1e-6
+    peak_lr: 1e-3
+    min_lr: 5e-5
+
+# Loss
+loss:
+  loss_list: ["l1", "perceptual"]
+  loss_weights: [0.25, 1.0]
+  use_gan: true
+  gan_start_epoch: 15
+  gan_loss_weight: 0.1
+  discriminator_channels: 64
+  discriminator_layers: 3
+
+logging:
+  name: "channeltok-baseline"
+  project: "channeltok"
+
+resume: false

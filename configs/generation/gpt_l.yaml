@@ -1,0 +1,17 @@
+# GPT-L on ImageNet-100k with 16K BSQ tokenizer (256 tokens, fixed length)
+# 343M params — 3x GPT-B capacity for better generation quality
+
+defaults:
+  - base
+
+gpt_model: "GPT-L"  # 343M params: 24 layers, 16 heads, 1024 dim
+global_batch_size: 256
+epochs: 400
+lr: 0.0003  # slightly lower than GPT-B's 4e-4 for larger model
+visualize_every: 5000
+ckpt_every: 5000
+wandb_name: "in100k-16k-gptl-256tok-posw"
+
+# Channelwise position-weighted loss: emphasize early (structural) channels
+position_weight_type: "linear"
+position_weight_alpha: 1.0

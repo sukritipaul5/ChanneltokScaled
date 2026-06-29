@@ -1,0 +1,93 @@
+# Base config for ImageNet-100k AR training with 16K BSQ tokenizer
+# 256 tokens per image, fixed length, no variable budget
+
+# Dataset
+dataset: "imagenet_npz"
+# Override this with --npz_path or in your child config
+npz_path: null  # set to path containing {train,val}_latents.npz
+split: "train"
+
+# Fixed-length 256 tokens
+min_tokens: 256
+max_tokens: 256
+random_token_budget: false
+fixed_token_budget: 256
+
+# Vocabulary: 16K BSQ + 3 special tokens
+vocab_size: 16384
+bos_token_id: 16384
+eos_token_id: 16385
+pad_token_id: 16386
+
+# Decoder for visualization
+decoder_ckpt: null  # path to tokenizer checkpoint (for visualization during training)
+decoder_config: "configs/num_channels/ch_256_16k.yaml"
+
+# Model
+gpt_type: "c2i"
+ema: true
+
+# Training
+epochs: 300
+lr: 0.0004
+weight_decay: 0.05
+beta1: 0.9
+beta2: 0.95
+max_grad_norm: 1.0
+gradient_accumulation_steps: 1
+
+# Regularization
+dropout_p: 0.1
+token_dropout_p: 0.1
+drop_path_rate: 0.0
+
+# Performance
+global_batch_size: 256
+num_workers: 8
+mixed_precision: "bf16"
+no_compile: false
+
+# Checkpointing
+results_dir: "./results_imagenet100k_16k"
+cloud_save_path: "./cloud_results"
+no_local_save: false
+log_every: 100
+ckpt_every: 10000
+
+# Visualization at multiple budgets
+visualize_every: 5000
+num_viz_samples: 4
+viz_token_budgets: [64, 256]
+
+# LR schedule
+use_lr_schedule: true
+warmup_fraction: 0.1
+
+# Disable B2
+b2_upload_every: 0
+
+# Image settings
+image_size: 256
+downsample_size: 64  # 256/4=64, gives latent_size=4 for 4x4 spatial
+max_sequence_length: 258  # 256 + BOS + EOS
+target_seq_length: 258
+
+# Position-weighted loss (for channelwise AR)
+# Weights early channels more heavily since errors cascade in channelwise ordering
+# Options: "none" (uniform, default), "linear", "exponential"
+position_weight_type: "none"
+position_weight_alpha: 1.0  # strength: 0 = uniform, higher = more front-loaded
+
+# Seed
+global_seed: 42
+
+# Model conditioning
+num_classes: 1000
+cls_token_num: 0  # 0 = unconditional
+
+# WandB
+wandb_enabled: true
+wandb_project: "channeltok"
+wandb_entity: null  # set via WANDB_ENTITY env var
+wandb_name: null
+distributed: true

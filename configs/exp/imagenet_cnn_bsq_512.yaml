@@ -1,0 +1,98 @@
+# ImageNet WebDataset Experiment Configuration with LFQ (Lookup Free Quantization)
+# Based on imagenet_init.yaml but using LFQ instead of FSQ
+
+defaults:
+  - base
+
+# Model configuration with LFQ quantizer
+model:
+  name: "VQGANAutoencoder"
+  latent_dim: 512
+
+  use_latent_mask: true
+  t_min: 0.002
+  t_max: 1.0
+  latent_mask_prob: 0.5
+
+  quantizer: "BSQ"  # Use Lookup Free Quantization
+
+  codebook_size: 65536  # 2^16 - good balance for 16 spatial dims
+  entropy_loss_weight: 0.1  # Weight for per-sample entropy loss
+  commitment_loss_weight: 0.25  # Weight for commitment loss
+  diversity_gamma: 1.0  # Weight for codebook diversity (batch entropy)
+
+  # Channelwise quantization settings
+  quantizer_dim: 16  # Spatial latent size for channelwise (4x4=16)
+  num_codebooks: 1
+  keep_num_codebooks_dim: false
+  quantize_channels: true  # Channelwise quantization
+
+  image_channels: 3
+  target_spatial_size: 4
+
+# Data configuration for HF ImageNet WebDataset
+data:
+  dataset: imagenet_wds
+  hf_root: "/home/ubuntu/imagenet/datasets--timm--imagenet-1k-wds/snapshots/cdf403ce12f01022a0c36e584e588c0b9cebc4af/"  # Path to WebDataset shards
+  train_glob: "imagenet1k-train-*.tar"
+  val_glob: "imagenet1k-validation-*.tar"
+  index_root: "/home/ubuntu/imagenet/wds_idx"  # ← Add this
+  train_index_subdir: "train"                   # ← Add this
+  val_index_subdir: "val"  
+
+  batch_size: 32
+  num_workers: 8
+  persistent_workers: true
+  pin_memory: true
+  shuffle: true
+  img_size: 256
+  val_resize: 256
+  
+
+# Training configuration overrides (inherits other defaults from base)
+training:
+  max_epochs: 100
+  learning_rate: 2e-3
+  precision: "bf16-mixed"  # BF16 recommended for H100
+  accelerator: "gpu"
+  devices: -1
+  strategy: "ddp"
+  sync_batchnorm: true
+  compile_model: true
+  weight_decay: 0.01
+
+
+  #we experience slow down in train time every epoch. So reset the loop every 5 epochs.
+  reset_train_epoch: 1
+
+  # Learning rate scheduler with warmup
+  lr_scheduler:
+    type: "cosine_warmup"
+    warmup_steps: 5000
+    init_lr: 5e-6
+    peak_lr: 1e-3
+    min_lr: 5e-5
+
+# Loss configuration
+loss:
+  loss_list: ["l1", "perceptual"]
+  loss_weights: [1.0, 0.3]
+
+# Logging configuration
+logging:
+  name: "imagenet_bsq_channelwise_cnn_512_perceptual_0.3"
+  project: "flextok"
+  tags: ["imagenet", "bsq", "channelwise", "cnn_512", "perceptual_0.3"]
+  log_every_n_steps: 50
+  log_viz_every: 5000
+  use_wandb: true
+
+# Output/checkpoint config
+output_dir: "./outputs/imagenet_bsq_channelwise_cnn_512_perceptual_0.3"
+
+# Resume settings
+resume: true
+resume_from: null
+
+# Execution mode
+mode: "train"
