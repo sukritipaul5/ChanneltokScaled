@@ -774,7 +774,10 @@ def main(args, yaml_config={}):
     start_time = time.time()
 
     grad_accum_steps = getattr(args, 'gradient_accumulation_steps', 1)
+    max_train_steps = getattr(args, 'max_train_steps', None)
     logger.info(f"Training for {args.epochs} epochs (gradient_accumulation_steps={grad_accum_steps})...")
+    if max_train_steps is not None:
+        logger.info(f"Stopping after {max_train_steps} optimizer steps.")
     for epoch in range(start_epoch, args.epochs):
         if args.distributed:
             sampler.set_epoch(epoch)
@@ -796,7 +799,7 @@ def main(args, yaml_config={}):
             attention_mask = batch['attention_mask'].to(device, non_blocking=True)  # [batch_size, seq_len]
             seq_lengths = batch['seq_lengths'].to(device, non_blocking=True)  # [batch_size]
             
-            with torch.amp.autocast(dtype=ptdtype):
+            with torch.amp.autocast('cuda', dtype=ptdtype):
                 # Unconditional training: provide dummy conditioning tensor
                 # Since cls_token_num=0, this will be sliced to empty anyway
                 batch_size = input_ids.shape[0]
@@ -1000,6 +1003,10 @@ def main(args, yaml_config={}):
                 log_steps = 0
                 start_time = time.time()
 
+            if max_train_steps is not None and train_steps >= max_train_steps:
+                logger.info(f"Reached max_train_steps={max_train_steps}.")
+                break
+
         # Save checkpoint at end of epoch:
         # Use ckpt_every to compute epoch interval (save every N epochs, minimum 1)
         ckpt_every = getattr(args, 'ckpt_every', 5000)
@@ -1040,6 +1047,9 @@ def main(args, yaml_config={}):
             dist.barrier()
         logger.info(f"Completed epoch {epoch}")
 
+        if max_train_steps is not None and train_steps >= max_train_steps:
+            break
+
     model.eval()  # important! This disables randomized embedding dropout
 
     # Clean up wandb
@@ -1074,6 +1084,8 @@ if __name__ == "__main__":
     parser.add_argument("--downsample-size", type=int, choices=[8, 16], default=16)
     parser.add_argument("--num-classes", type=int, default=1000)
     parser.add_argument("--epochs", type=int, default=300)
+    parser.add_argument("--max-train-steps", type=int, default=None,
+                        help="Optional optimizer-step limit for smoke tests")
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--weight-decay", type=float, default=5e-2, help="Weight decay to use")
     parser.add_argument("--beta1", type=float, default=0.9, help="beta1 parameter for the Adam optimizer")

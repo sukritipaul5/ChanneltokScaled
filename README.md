@@ -52,6 +52,20 @@ python -m tokenizer.evaluate_quantizer \
   --budgets 32 64 128 256 512
 ```
 
+For a five-image, full-channel reconstruction of ImageNet validation samples on
+Slurm, first create the local environment and then submit the included job:
+
+```bash
+uv sync --python 3.10
+sbatch scripts/slurm_reconstruct.sbatch
+```
+
+The job writes a reconstruction grid and metrics under `inference_output/`.
+`CHECKPOINT`, `CONFIG`, `DATA_ROOT`, `OUTPUT_ROOT`, `NUM_SAMPLES`,
+`SAMPLE_OFFSET`, and `INFERENCE_T` can be supplied as environment variables to
+override the script defaults. For example, select the next five validation
+images with `sbatch --export=ALL,SAMPLE_OFFSET=5 scripts/slurm_reconstruct.sbatch`.
+
 ### Tokenizer Training
 
 ```bash
@@ -82,6 +96,18 @@ python -m generation.sample \
   --config configs/generation/gpt_l.yaml \
   --ckpt checkpoints/generation/gpt_l/latest.pt
 ```
+
+To verify the downstream AR training path from a fresh initialization on this
+cluster, submit the bounded smoke test:
+
+```bash
+sbatch scripts/slurm_ar_smoke.sbatch
+```
+
+It extracts 256 token sequences from the mounted ImageNet validation set when
+needed, then trains a fresh GPT-Nano for 100 optimizer steps with local logging
+and no WandB dependency. The compatible 65K-token settings are in
+`configs/generation/smoke_65k.yaml`.
 
 ## Project Structure
 

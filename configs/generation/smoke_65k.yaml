@@ -1,0 +1,53 @@
+# Fresh-start AR smoke test for the 65K BSQ tokenizer used in this checkout.
+defaults:
+  - base
+
+# Pre-extracted smoke subset (created by scripts/slurm_ar_smoke.sbatch).
+npz_path: "./latents_data/ar_smoke_65k"
+split: "val"
+
+# Use the first 256 of the tokenizer's 512 ordered channel tokens. This matches
+# the sequence length used by the original ImageNet-100k AR configuration.
+min_tokens: 256
+max_tokens: 256
+random_token_budget: false
+fixed_token_budget: 256
+
+# 65K BSQ vocabulary plus BOS/EOS/PAD.
+vocab_size: 65536
+bos_token_id: 65536
+eos_token_id: 65537
+pad_token_id: 65538
+max_sequence_length: 257
+target_seq_length: 257
+
+# Small model and bounded run: enough updates to verify optimization behavior.
+gpt_model: "GPT-Nano"
+global_batch_size: 8
+epochs: 10
+max_train_steps: 100
+lr: 0.001
+use_lr_schedule: false
+dropout_p: 0.0
+token_dropout_p: 0.0
+ema: false
+no_compile: true
+mixed_precision: "bf16"
+num_workers: 4
+
+# Log locally every ten steps; do not contact WandB or run slow generation.
+wandb_enabled: false
+wandb_name: "ar-smoke-65k-fresh"
+log_every: 10
+visualize_every: 0
+ckpt_every: 100000
+results_dir: "./results_ar_smoke_65k"
+cloud_save_path: "./results_ar_smoke_65k/cloud"
+no_local_save: true
+
+# The decoder is currently loaded unconditionally by generation/train.py.
+decoder_ckpt: "/cmlscratch/sukriti5/mask-git-juhu/ckpt_runpod/imagenet_bsq_large_twostage_gan_continued/last.ckpt"
+decoder_config: "configs/exp/imagenet_bsq_large_continued.yaml"
+
+gpt_ckpt: null
+resume_same_folder: false

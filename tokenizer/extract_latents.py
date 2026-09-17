@@ -43,6 +43,8 @@ def main():
     parser.add_argument("--splits", nargs="+", default=["train", "val"], help="Dataset splits to process")
     parser.add_argument("--batch_size", type=int, default=256, help="Batch size for extraction")
     parser.add_argument("--num_workers", type=int, default=8, help="Dataloader workers")
+    parser.add_argument("--num_samples", type=int, default=None,
+                        help="Maximum images to extract from each split")
     parser.add_argument("--inference_t", type=int, default=None, help="Fixed token budget (None = all channels)")
     parser.add_argument("--save_samples", action="store_true", help="Save reconstruction samples")
     parser.add_argument("--data_dir", type=str, default=None, help="Path to ImageNet (sets dataset to imagefolder)")
@@ -135,10 +137,23 @@ def main():
             from utils.latent_extraction import _unpack_batch
 
             with torch.no_grad():
+                num_extracted = 0
                 for batch_idx, batch in enumerate(
                     __import__("tqdm").tqdm(dataloader, desc=f"  {split}")
                 ):
                     images, labels, keys = _unpack_batch(batch)
+
+                    if args.num_samples is not None:
+                        remaining = args.num_samples - num_extracted
+                        if remaining <= 0:
+                            break
+                        if images.size(0) > remaining:
+                            images = images[:remaining]
+                            if labels is not None:
+                                labels = labels[:remaining]
+                            if isinstance(keys, list):
+                                keys = keys[:remaining]
+
                     images = images.to(device, non_blocking=True)
 
                     indices = extractor(images)  # [B, T]
@@ -165,6 +180,8 @@ def main():
                     else:
                         all_names.extend([keys] * images.size(0))
 
+                    num_extracted += images.size(0)
+
             indices = np.concatenate(all_indices, axis=0)
             labels_np = np.concatenate(all_labels, axis=0)
             names = all_names
@@ -177,6 +194,7 @@ def main():
                 inference_t=args.inference_t,
                 save_samples=args.save_samples,
                 sample_dir=sample_dir,
+                num_samples=args.num_samples,
             )
 
         elapsed = time.time() - t0

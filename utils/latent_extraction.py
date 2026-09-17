@@ -111,7 +111,15 @@ def _save_reconstruction_samples(model, images, sample_dir, num_samples=8):
         print(f"Saved {n} reconstruction samples to {sample_dir}")
 
 
-def extract_latents(dataloader, model, device, inference_t=None, save_samples=False, sample_dir=None):
+def extract_latents(
+    dataloader,
+    model,
+    device,
+    inference_t=None,
+    save_samples=False,
+    sample_dir=None,
+    num_samples=None,
+):
     """Extract token indices from all images in a dataloader.
 
     When *inference_t* is not ``None`` the model is wrapped in
@@ -125,6 +133,7 @@ def extract_latents(dataloader, model, device, inference_t=None, save_samples=Fa
         inference_t: Fixed token budget (number of channels).  ``None`` = all.
         save_samples: If ``True``, save reconstruction PNGs from the first batch.
         sample_dir: Directory for sample images (required when *save_samples*).
+        num_samples: Optional maximum number of images to extract.
 
     Returns:
         ``(indices_np, names_list, labels_np)``
@@ -136,10 +145,23 @@ def extract_latents(dataloader, model, device, inference_t=None, save_samples=Fa
     all_labels = []
     all_names = []
     samples_saved = False
+    num_extracted = 0
 
     with torch.no_grad():
         for batch_idx, batch in enumerate(tqdm(dataloader, desc="Extracting latents")):
             images, labels, keys = _unpack_batch(batch)
+
+            if num_samples is not None:
+                remaining = num_samples - num_extracted
+                if remaining <= 0:
+                    break
+                if images.size(0) > remaining:
+                    images = images[:remaining]
+                    if labels is not None:
+                        labels = labels[:remaining]
+                    if isinstance(keys, list):
+                        keys = keys[:remaining]
+
             images = images.to(device)
 
             # Build default keys when the dataloader does not supply them
@@ -187,6 +209,8 @@ def extract_latents(dataloader, model, device, inference_t=None, save_samples=Fa
                 os.makedirs(sample_dir, exist_ok=True)
                 _save_reconstruction_samples(model, images, sample_dir)
                 samples_saved = True
+
+            num_extracted += images.size(0)
 
     indices_np = np.concatenate(all_indices, axis=0)
     labels_np = np.concatenate(all_labels, axis=0) if all_labels else np.full(len(indices_np), -1, dtype=np.int64)

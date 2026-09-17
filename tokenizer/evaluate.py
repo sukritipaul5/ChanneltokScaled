@@ -103,6 +103,8 @@ def main():
     parser.add_argument('--config', type=str, required=True, help='Path to config file')
     parser.add_argument('--output_dir', type=str, default='./inference_output', help='Output directory')
     parser.add_argument('--num_samples', type=int, default=None, help='Number of samples (None = all)')
+    parser.add_argument('--sample_offset', type=int, default=0,
+                        help='Skip this many validation samples before evaluation')
     parser.add_argument('--batch_size', type=int, default=None, help='Override batch size')
     parser.add_argument('--save_images', action='store_true', help='Save reconstruction grids')
     parser.add_argument('--inference_t', type=int, default=None, help='Number of channels (compression level)')
@@ -177,7 +179,9 @@ def main():
 
     all_metrics = []
     num_processed = 0
+    num_skipped = 0
     global_img_idx = 0
+    grid_saved = False
 
     with torch.no_grad():
         for batch_idx, batch in enumerate(tqdm(val_loader, desc="Processing")):
@@ -191,6 +195,15 @@ def main():
                 images = batch[0]
             else:
                 images = batch
+
+            # Select a later deterministic slice without changing dataset order.
+            if num_skipped < args.sample_offset:
+                remaining_to_skip = args.sample_offset - num_skipped
+                if remaining_to_skip >= images.size(0):
+                    num_skipped += images.size(0)
+                    continue
+                images = images[remaining_to_skip:]
+                num_skipped += remaining_to_skip
 
             images = images.to(device)
 
@@ -217,10 +230,11 @@ def main():
                 global_img_idx += 1
 
             # Save reconstruction grid from first batch
-            if args.save_images and batch_idx == 0:
+            if args.save_images and not grid_saved:
                 save_path = os.path.join(args.output_dir, 'reconstruction_grid.png')
                 save_reconstruction_grid(images, reconstructed, save_path)
                 print(f"Saved reconstruction grid to {save_path}")
+                grid_saved = True
 
     # Aggregate metrics
     avg = {k: np.mean([m[k] for m in all_metrics]) for k in all_metrics[0]}
@@ -257,6 +271,7 @@ def main():
         f.write(f"Checkpoint: {args.checkpoint}\n")
         f.write(f"Config: {args.config}\n")
         f.write(f"Samples: {num_processed}\n")
+        f.write(f"Sample offset: {args.sample_offset}\n")
         if args.inference_t is not None:
             f.write(f"Inference_t: {args.inference_t}\n")
         for k, v in avg.items():

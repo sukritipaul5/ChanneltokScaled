@@ -228,6 +228,7 @@ last.ckpt
 # Output directories
 output/
 outputs/
+inference_output/
 results/
 results_*/
 experiments/
