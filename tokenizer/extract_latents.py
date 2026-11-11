@@ -162,7 +162,7 @@ def main():
                         validate_first_batch(indices)
                         validated = True
 
-                    all_indices.append(indices.cpu().numpy().astype(np.int32))
+                    all_indices.append(indices.cpu().numpy().astype(np.uint16))
 
                     if labels is not None:
                         if isinstance(labels, torch.Tensor):

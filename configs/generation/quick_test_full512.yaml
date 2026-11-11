@@ -1,0 +1,54 @@
+defaults: [base]
+
+npz_path: "/fs/cml-projects/gaze/channeltok_latents/imagenet_full_512ch"
+split: "train"
+
+# Fixed full-channel budget — matches how the paper's own AR model was
+# actually trained (flexibility comes from truncating at inference, not
+# from variable-length training).
+min_tokens: 512
+max_tokens: 512
+random_token_budget: false
+fixed_token_budget: 512
+
+vocab_size: 65536
+bos_token_id: 65536
+eos_token_id: 65537
+pad_token_id: 65538
+max_sequence_length: 514
+target_seq_length: 514
+
+gpt_model: "GPT-B"
+gpt_type: "c2i"
+num_classes: 1000
+cls_token_num: 0
+
+global_batch_size: 64
+gradient_accumulation_steps: 2
+lr: 0.0004
+use_lr_schedule: false
+ema: false
+no_compile: true
+mixed_precision: "bf16"
+num_workers: 8
+
+epochs: 1
+max_train_steps: 3000
+log_every: 20
+ckpt_every: 1000
+visualize_every: 0
+
+position_weight_type: "linear"
+position_weight_alpha: 1.0
+
+decoder_ckpt: "/cmlscratch/sukriti5/mask-git-juhu/ckpt_runpod/imagenet_bsq_large_twostage_gan_continued/last.ckpt"
+decoder_config: "configs/exp/imagenet_bsq_large_continued.yaml"
+
+wandb_enabled: false
+results_dir: "./results_full512_quicktest"
+cloud_save_path: "./results_full512_quicktest/cloud"
+no_local_save: false
+
+gpt_ckpt: null
+resume_same_folder: false
+global_seed: 42
