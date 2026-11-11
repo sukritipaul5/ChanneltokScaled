@@ -70,8 +70,6 @@ Change its partition/account/QoS/GRES and file paths for the target cluster. Con
 - `configs/generation/full_imagenet_512ch_gptl.yaml` uses GPT-L. GPT-L is the paper-validated architecture and is the lower-risk starting point; this repository's bug-fixed training path has already learned correctly at the exact 512-channel/65K-vocabulary representation with GPT-B.
 - `configs/generation/full_imagenet_512ch_gptxl.yaml` uses GPT-XL. GPT-XL is the recommended primary target when compute permits because this experiment has roughly ten times more images than the paper's AR experiment, consistent with LlamaGen's published model-scaling trend.
 
-This exact combination—channel tokens, full ImageNet-1k, 512 channels, and a 65K vocabulary—has not been run before at either size. If budget permits, run GPT-L and GPT-XL in parallel as a hedge rather than choosing one blindly. Memory-fit and throughput-test each model independently.
-
 ## Launch commands
 
 Confirm that the three data/checkpoint paths in the chosen production config match the active mounts. The shared-cluster defaults can be used directly.
