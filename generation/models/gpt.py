@@ -289,6 +289,7 @@ class Transformer(nn.Module):
         # output layer
         self.norm = RMSNorm(config.dim, eps=config.norm_eps)
         self.output = nn.Linear(config.dim, config.vocab_size, bias=False)
+        self.output.weight = self.tok_embeddings.weight  # weight tying: halves vocab-sized params
 
         # Positional encoding: Learned absolute embeddings (FlexTok-style) or RoPE
         if self.config.use_learned_pos_emb:
@@ -329,9 +330,6 @@ class Transformer(nn.Module):
     def initialize_weights(self):        
         # Initialize nn.Linear and nn.Embedding
         self.apply(self._init_weights)
-
-        # Zero-out output layers:
-        nn.init.constant_(self.output.weight, 0)
 
     def _init_weights(self, module):
         std = self.config.initializer_range
@@ -450,7 +448,7 @@ class Transformer(nn.Module):
         
         # output layers
         h = self.norm(h)
-        logits = self.output(h).float()
+        logits = self.output(h)
         
         if self.training:
             # For unconditional training (cls_token_num=0), don't slice off any tokens

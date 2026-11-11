@@ -185,7 +185,7 @@ def extract_latents(
             if indices.dim() == 3:  # [B, H, W] spatial quantization
                 indices = indices.reshape(indices.size(0), -1)
 
-            indices_np = indices.cpu().numpy().astype(np.int32)
+            indices_np = indices.cpu().numpy().astype(np.uint16)
             all_indices.append(indices_np)
 
             # Labels

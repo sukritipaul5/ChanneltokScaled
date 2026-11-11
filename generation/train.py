@@ -12,6 +12,7 @@ from torch.utils.data.distributed import DistributedSampler
 from glob import glob
 from copy import deepcopy
 import os
+import sys
 import time
 import inspect
 import argparse
@@ -905,7 +906,7 @@ def main(args, yaml_config={}):
                     reserved = torch.cuda.memory_reserved(device) / 1024**3
                     logger.info(f"Step {train_steps}: GPU {device} Memory - {allocated:.2f}GB allocated, {reserved:.2f}GB reserved")
             
-            if train_steps % args.log_every == 0:
+            if log_steps > 0 and train_steps % args.log_every == 0:
                 # Measure training speed:
                 torch.cuda.synchronize()
                 
@@ -1117,6 +1118,17 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
  
+    cli_overrides = {}
+    for option, attribute in (
+        ("--max-train-steps", "max_train_steps"),
+        ("--global-batch-size", "global_batch_size"),
+        ("--gradient-accumulation-steps", "gradient_accumulation_steps"),
+    ):
+        if option in sys.argv:
+            cli_overrides[attribute] = getattr(args, attribute)
+
     args, yaml_config = load_config_from_yaml(args.config, args)
+    for attribute, value in cli_overrides.items():
+        setattr(args, attribute, value)
     
     main(args, yaml_config)
