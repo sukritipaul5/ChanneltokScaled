@@ -1,6 +1,6 @@
 #!/bin/bash
 # Two-node/one-GPU-per-node demo template. These three scheduler values
-# are from Sukriti's UMIACS validation; change them for the target cluster.
+# are from the validated UMIACS run; change them for the target cluster.
 #SBATCH --partition=tron
 #SBATCH --account=nexus
 #SBATCH --qos=high

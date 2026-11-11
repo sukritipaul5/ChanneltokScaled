@@ -1,6 +1,6 @@
 defaults: [base]
 
-# UMIACS path on Sukriti's cluster; change this to where the latent NPZ files land on the collaborator's infrastructure.
+# UMIACS path; change this to where the latent NPZ files land on the collaborator's infrastructure.
 npz_path: "/fs/cml-projects/gaze/channeltok_latents/imagenet_full_512ch"
 split: "train"
 
@@ -50,9 +50,9 @@ visualize_every: 5000
 position_weight_type: "linear"
 position_weight_alpha: 1.0
 
-# UMIACS path on Sukriti's cluster; change this to where the tokenizer checkpoint lands on the collaborator's infrastructure.
+# UMIACS path; change this to where the tokenizer checkpoint lands on the collaborator's infrastructure.
 decoder_ckpt: "/cmlscratch/sukriti5/mask-git-juhu/ckpt_runpod/imagenet_bsq_large_twostage_gan_continued/last.ckpt"
-# UMIACS path on Sukriti's cluster; change this to the matching tokenizer config path on the collaborator's infrastructure.
+# UMIACS path; change this to the matching tokenizer config path on the collaborator's infrastructure.
 decoder_config: "/fs/cml-projects/gaze/ChanneltokScaled/configs/exp/imagenet_bsq_large_continued.yaml"
 
 wandb_enabled: true

@@ -4,7 +4,7 @@ This is a validated channel-wise autoregressive training path for full ImageNet-
 
 ## What exists and where
 
-These are measured on Sukriti's UMIACS environment. File sizes include both the exact byte count from `ls -la` and allocated size from `du -h`; directory rows report total `du -h` usage.
+File sizes include both the exact byte count from `ls -la` and allocated size from `du -h`; directory rows report total `du -h` usage.
 
 | Artifact | UMIACS path | Measured size | Details |
 |---|---|---:|---|
@@ -17,8 +17,6 @@ These are measured on Sukriti's UMIACS environment. File sizes include both the 
 | Validated GPT-B checkpoint | `/fs/cml-projects/gaze/ChanneltokScaled/results_full512_quicktest/004-GPT-B/checkpoints/latest.pt` | 1,626,634,862 bytes; 1.6G allocated | Reference artifact from the successful 3,000-step run; not required for the collaborator's training. |
 | Decode sample grid | `/fs/cml-projects/gaze/ChanneltokScaled/results_full512_quicktest/quicktest_samples_grid.png` | 4,018,363 bytes; 3.9M allocated | Eight samples decoded at 64/128/256/512-token budgets. |
 | Multi-node validation log | `/nfshomes/sukriti5/channeltok-multinode-8356534.out` | 28,144 bytes; 24K allocated | Successful two-node, one-A5000-per-node SLURM/NCCL validation. |
-
-The training NPZ contains 1,281,152 rows, which is 15 fewer than the canonical ImageNet-1k training count of 1,281,167. That is the exact artifact validated here and should be checked explicitly after either transfer or regeneration.
 
 **The tokenizer checkpoint is required even when the precomputed latents are available through shared storage.** `generation/train.py` loads `decoder_ckpt` unconditionally, even when visualization is infrequent or disabled. All UMIACS paths in the production configs are marked for replacement after the corresponding files are placed on the collaborator's infrastructure.
 
