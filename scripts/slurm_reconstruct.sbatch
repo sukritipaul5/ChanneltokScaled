@@ -16,7 +16,7 @@ if [[ -n "${SLURM_SUBMIT_DIR:-}" ]]; then
 else
     REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 fi
-CHECKPOINT="${CHECKPOINT:-/cmlscratch/sukriti5/mask-git-juhu/ckpt_runpod/imagenet_bsq_large_twostage_gan_continued/last.ckpt}"
+CHECKPOINT="${CHECKPOINT:-/fs/cml-projects/gaze/channeltok_ckpts/last.ckpt}"
 CONFIG="${CONFIG:-${REPO_ROOT}/configs/exp/imagenet_bsq_large_continued.yaml}"
 DATA_ROOT="${DATA_ROOT:-/fs/cml-datasets/ImageNet/ILSVRC2012}"
 OUTPUT_ROOT="${OUTPUT_ROOT:-${REPO_ROOT}/inference_output}"

@@ -53,8 +53,8 @@ visualize_every: 5000
 position_weight_type: "linear"
 position_weight_alpha: 1.0
 
-# UMIACS path; change this to where the tokenizer checkpoint lands on the collaborator's infrastructure.
-decoder_ckpt: "/cmlscratch/sukriti5/mask-git-juhu/ckpt_runpod/imagenet_bsq_large_twostage_gan_continued/last.ckpt"
+# Shared-cluster checkpoint path; use it directly there, or copy the file and update this path when running elsewhere.
+decoder_ckpt: "/fs/cml-projects/gaze/channeltok_ckpts/last.ckpt"
 # UMIACS path; change this to the matching tokenizer config path on the collaborator's infrastructure.
 decoder_config: "/fs/cml-projects/gaze/ChanneltokScaled/configs/exp/imagenet_bsq_large_continued.yaml"
 

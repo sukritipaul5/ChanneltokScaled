@@ -23,7 +23,7 @@ PYTHON="${REPO_ROOT}/.venv/bin/python"
 TORCHRUN="${REPO_ROOT}/.venv/bin/torchrun"
 CONFIG="${REPO_ROOT}/configs/generation/quick_test_full512.yaml"
 LATENT_DIR="/fs/cml-projects/gaze/channeltok_latents/imagenet_full_512ch"
-DECODER_CHECKPOINT="/cmlscratch/sukriti5/mask-git-juhu/ckpt_runpod/imagenet_bsq_large_twostage_gan_continued/last.ckpt"
+DECODER_CHECKPOINT="/fs/cml-projects/gaze/channeltok_ckpts/last.ckpt"
 
 for required in "${PYTHON}" "${TORCHRUN}" "${CONFIG}" \
                 "${LATENT_DIR}/train_latents.npz" "${LATENT_DIR}/val_latents.npz" \

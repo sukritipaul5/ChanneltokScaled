@@ -41,7 +41,7 @@ visualize_every: 0
 position_weight_type: "linear"
 position_weight_alpha: 1.0
 
-decoder_ckpt: "/cmlscratch/sukriti5/mask-git-juhu/ckpt_runpod/imagenet_bsq_large_twostage_gan_continued/last.ckpt"
+decoder_ckpt: "/fs/cml-projects/gaze/channeltok_ckpts/last.ckpt"
 decoder_config: "configs/exp/imagenet_bsq_large_continued.yaml"
 
 wandb_enabled: false

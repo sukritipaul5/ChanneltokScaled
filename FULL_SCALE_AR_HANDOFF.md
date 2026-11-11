@@ -9,7 +9,8 @@ File sizes include both the exact byte count from `ls -la` and allocated size fr
 | Artifact | UMIACS path | Measured size | Details |
 |---|---|---:|---|
 | Repository root | `/fs/cml-projects/gaze/ChanneltokScaled` | 15G directory usage | Source checkout used for all validation runs. |
-| Tokenizer checkpoint | `/cmlscratch/sukriti5/mask-git-juhu/ckpt_runpod/imagenet_bsq_large_twostage_gan_continued/last.ckpt` | 1,945,272,705 bytes; 1.9G allocated | Frozen 512-channel BSQ tokenizer/decoder. Required for AR training even when using the precomputed latents. |
+| Tokenizer checkpoint | `/fs/cml-projects/gaze/channeltok_ckpts/last.ckpt` | 1,945,272,705 bytes; 1.9G allocated | Frozen 512-channel BSQ tokenizer/decoder. Required for AR training even when using the precomputed latents. |
+| Additional shared checkpoint | `/fs/cml-projects/gaze/channeltok_ckpts/best.ckpt` | 1,945,272,705 bytes; 1.9G allocated | Also available in the shared checkpoint directory. |
 | Tokenizer config | `/fs/cml-projects/gaze/ChanneltokScaled/configs/exp/imagenet_bsq_large_continued.yaml` | 2,796 bytes; 8.0K allocated | Matching tokenizer architecture/configuration. |
 | Latents directory | `/fs/cml-projects/gaze/channeltok_latents/imagenet_full_512ch` | 1.3G directory usage | Contains the train/validation NPZ files and local reconstruction-verification artifacts. |
 | Training latents | `/fs/cml-projects/gaze/channeltok_latents/imagenet_full_512ch/train_latents.npz` | 1,318,496,079 bytes; 1.3G allocated | `indices`: `(1,281,152, 512)` `uint16`; `labels`: `(1,281,152)` `int64`. |
@@ -18,7 +19,7 @@ File sizes include both the exact byte count from `ls -la` and allocated size fr
 | Decode sample grid | `/fs/cml-projects/gaze/ChanneltokScaled/results_full512_quicktest/quicktest_samples_grid.png` | 4,018,363 bytes; 3.9M allocated | Eight samples decoded at 64/128/256/512-token budgets. |
 | Multi-node validation log | `/nfshomes/sukriti5/channeltok-multinode-8356534.out` | 28,144 bytes; 24K allocated | Successful two-node, one-A5000-per-node SLURM/NCCL validation. |
 
-**The tokenizer checkpoint is required even when the precomputed latents are available through shared storage.** `generation/train.py` loads `decoder_ckpt` unconditionally, even when visualization is infrequent or disabled. All UMIACS paths in the production configs are marked for replacement after the corresponding files are placed on the collaborator's infrastructure.
+**The tokenizer checkpoint is required even when the precomputed latents are available through shared storage.** `generation/train.py` loads `decoder_ckpt` unconditionally, even when visualization is infrequent or disabled. The shared-cluster checkpoint path can be used directly; update it only when running elsewhere.
 
 ## Latent delivery through shared cluster storage
 
@@ -73,7 +74,7 @@ This exact combination—channel tokens, full ImageNet-1k, 512 channels, and a 6
 
 ## Launch commands
 
-First replace the three UMIACS paths marked in the chosen production config.
+Confirm that the three data/checkpoint paths in the chosen production config match the active mounts. The shared-cluster defaults can be used directly.
 
 Single-node multi-GPU:
 

@@ -46,7 +46,7 @@ cloud_save_path: "./results_ar_smoke_65k/cloud"
 no_local_save: true
 
 # The decoder is currently loaded unconditionally by generation/train.py.
-decoder_ckpt: "/cmlscratch/sukriti5/mask-git-juhu/ckpt_runpod/imagenet_bsq_large_twostage_gan_continued/last.ckpt"
+decoder_ckpt: "/fs/cml-projects/gaze/channeltok_ckpts/last.ckpt"
 decoder_config: "configs/exp/imagenet_bsq_large_continued.yaml"
 
 gpt_ckpt: null

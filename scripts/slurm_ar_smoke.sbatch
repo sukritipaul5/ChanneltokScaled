@@ -18,7 +18,7 @@ else
 fi
 
 PYTHON="${REPO_ROOT}/.venv/bin/python"
-CHECKPOINT="${CHECKPOINT:-/cmlscratch/sukriti5/mask-git-juhu/ckpt_runpod/imagenet_bsq_large_twostage_gan_continued/last.ckpt}"
+CHECKPOINT="${CHECKPOINT:-/fs/cml-projects/gaze/channeltok_ckpts/last.ckpt}"
 TOKENIZER_CONFIG="${TOKENIZER_CONFIG:-${REPO_ROOT}/configs/exp/imagenet_bsq_large_continued.yaml}"
 AR_CONFIG="${AR_CONFIG:-${REPO_ROOT}/configs/generation/smoke_65k.yaml}"
 DATA_ROOT="${DATA_ROOT:-/fs/cml-datasets/ImageNet/ILSVRC2012}"

@@ -20,7 +20,7 @@ else
 fi
 
 PYTHON="${REPO_ROOT}/.venv/bin/python"
-CHECKPOINT="/cmlscratch/sukriti5/mask-git-juhu/ckpt_runpod/imagenet_bsq_large_twostage_gan_continued/last.ckpt"
+CHECKPOINT="/fs/cml-projects/gaze/channeltok_ckpts/last.ckpt"
 CONFIG="${REPO_ROOT}/configs/exp/imagenet_bsq_large_continued.yaml"
 DATA_ROOT="/fs/cml-datasets/ImageNet/ILSVRC2012"
 LATENTS="/fs/cml-projects/gaze/channeltok_latents/imagenet_full_512ch/val_latents.npz"
