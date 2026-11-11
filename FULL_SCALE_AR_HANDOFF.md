@@ -64,12 +64,6 @@ Change its partition/account/QoS/GRES and file paths for the target cluster. Con
 - finite loss/accuracy metrics after backward and optimizer steps;
 - clean checkpointing and exit on both ranks.
 
-### 3. Bounded learning run on the real hardware
-
-Run roughly 3,000 optimizer steps using the intended model and hardware. The random-token cross-entropy reference is `ln(65536) ≈ 11.09` and chance token accuracy is about `1 / 65536 ≈ 0.0000153`. Require loss to move meaningfully below that baseline and accuracy to rise well above chance, rather than accepting only a non-crashing process.
-
-Reference: this was validated on GPT-B / 4×A5000, where loss fell from 11.15 to 6.06 and token accuracy rose from 0.002 to 0.350 over 3000 steps — use a comparable magnitude of improvement as your bar, not just a non-crashing process.
-
 ## GPT-L or GPT-XL
 
 - `configs/generation/full_imagenet_512ch_gptl.yaml` uses GPT-L. GPT-L is the paper-validated architecture and is the lower-risk starting point; this repository's bug-fixed training path has already learned correctly at the exact 512-channel/65K-vocabulary representation with GPT-B.
