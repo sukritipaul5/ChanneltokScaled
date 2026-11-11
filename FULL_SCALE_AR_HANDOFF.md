@@ -9,7 +9,7 @@ These are measured on Sukriti's UMIACS environment. File sizes include both the 
 | Artifact | UMIACS path | Measured size | Details |
 |---|---|---:|---|
 | Repository root | `/fs/cml-projects/gaze/ChanneltokScaled` | 15G directory usage | Source checkout used for all validation runs. |
-| Tokenizer checkpoint | `/cmlscratch/sukriti5/mask-git-juhu/ckpt_runpod/imagenet_bsq_large_twostage_gan_continued/last.ckpt` | 1,945,272,705 bytes; 1.9G allocated | Frozen 512-channel BSQ tokenizer/decoder. Required for either latent-delivery option. |
+| Tokenizer checkpoint | `/cmlscratch/sukriti5/mask-git-juhu/ckpt_runpod/imagenet_bsq_large_twostage_gan_continued/last.ckpt` | 1,945,272,705 bytes; 1.9G allocated | Frozen 512-channel BSQ tokenizer/decoder. Required for AR training even when using the precomputed latents. |
 | Tokenizer config | `/fs/cml-projects/gaze/ChanneltokScaled/configs/exp/imagenet_bsq_large_continued.yaml` | 2,796 bytes; 8.0K allocated | Matching tokenizer architecture/configuration. |
 | Latents directory | `/fs/cml-projects/gaze/channeltok_latents/imagenet_full_512ch` | 1.3G directory usage | Contains the train/validation NPZ files and local reconstruction-verification artifacts. |
 | Training latents | `/fs/cml-projects/gaze/channeltok_latents/imagenet_full_512ch/train_latents.npz` | 1,318,496,079 bytes; 1.3G allocated | `indices`: `(1,281,152, 512)` `uint16`; `labels`: `(1,281,152)` `int64`. |
@@ -20,16 +20,17 @@ These are measured on Sukriti's UMIACS environment. File sizes include both the 
 
 The training NPZ contains 1,281,152 rows, which is 15 fewer than the canonical ImageNet-1k training count of 1,281,167. That is the exact artifact validated here and should be checked explicitly after either transfer or regeneration.
 
-**The tokenizer checkpoint is required in both delivery scenarios.** `generation/train.py` loads `decoder_ckpt` unconditionally, even when visualization is infrequent or disabled, so receiving precomputed NPZ files does not remove the decoder-checkpoint requirement. All UMIACS paths in the production configs are marked for replacement after the corresponding files are placed on the collaborator's infrastructure.
+**The tokenizer checkpoint is required even when the precomputed latents are available through shared storage.** `generation/train.py` loads `decoder_ckpt` unconditionally, even when visualization is infrequent or disabled. All UMIACS paths in the production configs are marked for replacement after the corresponding files are placed on the collaborator's infrastructure.
 
-## Open decision: how the collaborator receives the latents
+## Latent delivery through shared cluster storage
 
-This is intentionally unresolved and should be decided directly with the collaborator:
+The latents were generated with `tokenizer/extract_latents.py`, using `scripts/slurm_extract_full_imagenet.sbatch` as the reference extraction job. They are available in the shared cluster folder:
 
-1. Transfer `train_latents.npz` and `val_latents.npz` from the directory above.
-2. Regenerate them with `tokenizer/extract_latents.py` against the collaborator's own ImageNet copy, using the tokenizer checkpoint and matching config above. `scripts/slurm_extract_full_imagenet.sbatch` is a working UMIACS example, but its paths and scheduler directives are site-specific.
+```text
+/fs/cml-projects/gaze/channeltok_latents/imagenet_full_512ch
+```
 
-Whichever option is chosen, verify array shape, dtype, labels length, code range, and exact image count before starting AR training.
+Use that path when the shared mount is identical; otherwise adjust `npz_path` to the corresponding shared location. Verify array shape, dtype, labels length, code range, and exact image count before starting AR training.
 
 ## Reproduction before the full run
 
@@ -48,7 +49,7 @@ python -m generation.train \
 
 Use the GPT-XL config when testing GPT-XL. Watch both the training loop's allocated/reserved memory log and `nvidia-smi` through forward, backward, and optimizer steps. Preserve comfortable headroom rather than merely avoiding OOM once.
 
-### 2. Two-node SLURM/NCCL smoke test
+### 2. Two-node SLURM/NCCL demo
 
 If the real run is multi-node, reproduce the validated two-node/one-GPU-per-node test before scaling the allocation:
 
@@ -65,13 +66,11 @@ Change its partition/account/QoS/GRES and file paths for the target cluster. Con
 - finite loss/accuracy metrics after backward and optimizer steps;
 - clean checkpointing and exit on both ranks.
 
-UMIACS job `8356534` passed these checks on `tron47` and `tron48`. With global batch 32 and two ranks, each A5000 processed 16 images; step 20 logged loss `11.1839`, accuracy `0.002`, and step 40 logged loss `11.1289`, accuracy `0.002`, before a clean 50-step exit.
-
 ### 3. Bounded learning run on the real hardware
 
 Run roughly 3,000 optimizer steps using the intended model and hardware. The random-token cross-entropy reference is `ln(65536) ≈ 11.09` and chance token accuracy is about `1 / 65536 ≈ 0.0000153`. Require loss to move meaningfully below that baseline and accuracy to rise well above chance, rather than accepting only a non-crashing process.
 
-The validation run here used GPT-B on 4×A5000: loss fell from `11.15` to `6.06`, token accuracy rose from `0.002` to `0.350`, and decoder samples showed a sane coarse-to-fine progression. That is the bar for establishing that optimization, data loading, distributed reductions, checkpointing, and decoding work together.
+Reference: this was validated on GPT-B / 4×A5000, where loss fell from 11.15 to 6.06 and token accuracy rose from 0.002 to 0.350 over 3000 steps — use a comparable magnitude of improvement as your bar, not just a non-crashing process.
 
 ## GPT-L or GPT-XL
 
@@ -94,7 +93,7 @@ torchrun --nproc_per_node=<GPUS_ON_NODE> \
 
 Use `full_imagenet_512ch_gptxl.yaml` for GPT-XL.
 
-Multi-node under SLURM should use one task per GPU (or the scheduler-specific equivalent) and `srun`, which exercises the repository's `SLURM_PROCID` initialization path. The provided template defaults to the bounded two-node smoke test:
+Multi-node under SLURM should use one task per GPU (or the scheduler-specific equivalent) and `srun`, which exercises the repository's `SLURM_PROCID` initialization path. The provided template defaults to the bounded two-node demo:
 
 ```bash
 CONFIG="$PWD/configs/generation/full_imagenet_512ch_gptl.yaml" \
@@ -102,7 +101,7 @@ GLOBAL_BATCH_SIZE=32 MAX_TRAIN_STEPS=50 \
 sbatch scripts/slurm_multinode_template.sbatch
 ```
 
-After the smoke test, adapt the template to the final node/GPU count and submit with `MAX_TRAIN_STEPS=none` for the production run. On a non-SLURM system, use standard `torchrun --nnodes`, `--node_rank`, `--rdzv_id`, and `--rdzv_endpoint` arguments supplied by that cluster's launcher.
+After the demo, adapt the template to the final node/GPU count and submit with `MAX_TRAIN_STEPS=none` for the production run. On a non-SLURM system, use standard `torchrun --nnodes`, `--node_rank`, `--rdzv_id`, and `--rdzv_endpoint` arguments supplied by that cluster's launcher.
 
 ## Memory tuning
 
@@ -166,3 +165,5 @@ If initialization succeeds but training OOMs, distinguish networking from per-ra
 At a 65,539-entry model vocabulary (65,536 codes plus BOS/EOS/PAD), the original implementation had separate token-embedding and output-projection matrices and unconditionally converted the full `(batch, sequence, vocabulary)` logits tensor to fp32. The validated implementation ties `self.output.weight` to `self.tok_embeddings.weight` and leaves logits in the active autocast dtype, removing the redundant vocabulary matrix and the large transient fp32 logits copy.
 
 The old final-layer zero initialization was removed intentionally: with tied weights it would also zero the token embeddings and break initialization. As a result, these checkpoints differ structurally and in initialization behavior from an untied vanilla LlamaGen checkpoint; external checkpoint-loading or conversion code must account for the tied embedding/output weight.
+
+This is a fix to the shared `generation/models/gpt.py` model code, not a special case implemented only for the 512-channel/65,536-code setup. Earlier ImageNet-100/16,384-vocabulary runs used the same untied-embedding/fp32-logits pattern; the tensor-size math indicates that it was simply less memory-critical at the smaller vocabulary. The fix was not re-tested at 16K vocabulary because that checkpoint is lost and the old experiment is out of scope going forward, so compatibility there is a reasonable inference from the math rather than a verified result.

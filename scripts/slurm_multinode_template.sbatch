@@ -1,5 +1,5 @@
 #!/bin/bash
-# Two-node/one-GPU-per-node smoke-test template. These three scheduler values
+# Two-node/one-GPU-per-node demo template. These three scheduler values
 # are from Sukriti's UMIACS validation; change them for the target cluster.
 #SBATCH --partition=tron
 #SBATCH --account=nexus
@@ -11,7 +11,7 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
 #SBATCH --time=00:20:00
-#SBATCH --job-name=channeltok-multinode-smoke
+#SBATCH --job-name=channeltok-multinode-demo
 #SBATCH --output=slurm-%x-%j.out
 
 set -euo pipefail
@@ -21,7 +21,7 @@ PYTHON="${REPO_ROOT}/.venv/bin/python"
 CONFIG="${CONFIG:-${REPO_ROOT}/configs/generation/full_imagenet_512ch_gptl.yaml}"
 
 # global_batch_size is divided by WORLD_SIZE before each rank builds its loader.
-# For this two-rank smoke test, 32 means 16 images/GPU. Do not reuse a batch
+# For this two-rank demo, 32 means 16 images/GPU. Do not reuse a batch
 # chosen for a different world size without recomputing the per-rank batch.
 GLOBAL_BATCH_SIZE="${GLOBAL_BATCH_SIZE:-32}"
 # Set MAX_TRAIN_STEPS=none after validation to run according to config epochs.
