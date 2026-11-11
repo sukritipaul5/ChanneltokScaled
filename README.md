@@ -1,172 +1,139 @@
-# ChannelTok: Efficient Flexible-Length Vision Tokenization
+# ChannelTok
+
+ChannelTok represents an image as an ordered sequence of latent channels. Early tokens capture global structure; later tokens add detail, so the same tokenizer supports flexible compression and channel-wise autoregressive generation.
 
 <p align="center">
-  <a href="https://channeltok.github.io">Website</a> |
-  <a href="https://arxiv.org/abs/2606.04461">arXiv</a> |
-  <a href="#citation">BibTeX</a>
+  <a href="https://channeltok.github.io">website</a> ·
+  <a href="https://arxiv.org/abs/2606.04461">paper</a> ·
+  <a href="#citation">citation</a>
 </p>
 
-<!-- TODO: Add results figure -->
-<!-- ![ChannelTok results](./assets/channeltok_results.png) -->
+The validated full-scale path uses 512 tokens per image, a 65,536-code vocabulary, and pre-extracted ImageNet-1k latents. See [FULL_SCALE_AR_HANDOFF.md](FULL_SCALE_AR_HANDOFF.md) for exact artifacts, measured sizes, multi-node notes, and troubleshooting.
 
-## Overview
+## Install
 
-ChannelTok treats each latent channel as a visual token, enabling:
-- **Flexible compression**: retain first k channels at inference for quality-speed tradeoff
-- **Coarse-to-fine hierarchy**: early channels encode global structure, later channels refine details
-- **Variable-length AR generation**: channel ordering maps directly to autoregressive factorization
-
-Our model achieves **rFID 2.92** while being **8.6x faster** in decoding and **2.1x smaller** (159M params) than the next-best flexible tokenizer.
-
-Architecture: CNN-Transformer hybrid encoder-decoder with Binary Spherical Quantization (BSQ).
-
-## Setup
+Python 3.10 and CUDA are recommended.
 
 ```bash
-# Install uv (if not already installed)
-curl -LsSf https://astral.sh/uv/install.sh | sh
+git clone https://github.com/sukritipaul5/ChanneltokScaled.git
+cd ChanneltokScaled
 
-# Clone and install
-git clone https://github.com/sukritipaul5/Channeltok.git
-cd Channeltok
-uv sync
-```
-
-## Quick Start
-
-### Inference / Evaluation
-
-```bash
-# Evaluate ChannelTok (flexible) at 256 tokens
-python -m tokenizer.evaluate \
-  --checkpoint checkpoints/channeltok/best.ckpt \
-  --config configs/tokenizer/channeltok_flex.yaml \
-  --data_dir /path/to/imagenet \
-  --inference_t 256
-
-# Multi-budget evaluation (32, 64, 128, 256, 512 tokens)
-python -m tokenizer.evaluate_quantizer \
-  --ckpt checkpoints/channeltok/best.ckpt \
-  --config configs/tokenizer/channeltok_flex.yaml \
-  --data_dir /path/to/imagenet \
-  --budgets 32 64 128 256 512
-```
-
-For a five-image, full-channel reconstruction of ImageNet validation samples on
-Slurm, first create the local environment and then submit the included job:
-
-```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh  # skip if uv is installed
 uv sync --python 3.10
-sbatch scripts/slurm_reconstruct.sbatch
 ```
 
-The job writes a reconstruction grid and metrics under `inference_output/`.
-`CHECKPOINT`, `CONFIG`, `DATA_ROOT`, `OUTPUT_ROOT`, `NUM_SAMPLES`,
-`SAMPLE_OFFSET`, and `INFERENCE_T` can be supplied as environment variables to
-override the script defaults. For example, select the next five validation
-images with `sbatch --export=ALL,SAMPLE_OFFSET=5 scripts/slurm_reconstruct.sbatch`.
-
-### Tokenizer Training
+Commands below use `.venv/bin/python` and `.venv/bin/torchrun`. Activating the environment is optional:
 
 ```bash
-# Single node, multi-GPU
-torchrun --nproc_per_node=8 -m tokenizer.train \
-  --config configs/tokenizer/channeltok_flex.yaml \
-  --data_dir /path/to/imagenet
+source .venv/bin/activate
 ```
 
-### Autoregressive Generation
+## Reproduce the full ImageNet AR setup
 
-The AR pipeline uses pre-extracted token indices from the tokenizer.
+Two production configs are provided:
+
+- `configs/generation/full_imagenet_512ch_gptl.yaml` — GPT-L, lower-risk starting point
+- `configs/generation/full_imagenet_512ch_gptxl.yaml` — GPT-XL, larger primary target
+
+Both configs contain the validated UMIACS paths for the latent directory, tokenizer checkpoint, and tokenizer config. Change the three marked paths if the files are mounted elsewhere.
+
+Set `WANDB_API_KEY` for logging, or set `wandb_enabled: false` in the selected config.
+
+### 1. Check memory on one GPU
+
+Run a short precheck before requesting a large allocation:
 
 ```bash
-# Step 1: Extract latents
-python -m tokenizer.extract_latents \
-  --checkpoint checkpoints/channeltok/best.ckpt \
-  --config configs/tokenizer/channeltok_flex.yaml \
+.venv/bin/python -m generation.train \
+  --config configs/generation/full_imagenet_512ch_gptl.yaml \
+  --global-batch-size 8 \
+  --max-train-steps 20
+```
+
+Watch allocated/reserved GPU memory and `nvidia-smi`, then adjust the batch. Repeat independently for GPT-XL.
+
+### 2. Run on one multi-GPU node
+
+```bash
+.venv/bin/torchrun --nproc_per_node=8 \
+  -m generation.train \
+  --config configs/generation/full_imagenet_512ch_gptl.yaml
+```
+
+`global_batch_size / world_size` is the batch loaded by each rank. Recompute it whenever the GPU count changes; use gradient accumulation to increase effective batch size without increasing peak memory.
+
+### 3. Validate multi-node launch
+
+Edit the scheduler and GRES directives in the template, then run its bounded two-node demo:
+
+```bash
+sbatch scripts/slurm_multinode_template.sbatch
+```
+
+A passing log shows distinct global ranks, different hostnames, NCCL initialization on every node, finite loss/accuracy, rank-0-only checkpoint setup, and a clean exit. After validation, adapt the template to the final allocation and set `MAX_TRAIN_STEPS=none`.
+
+## Extract latents
+
+Latents are generated with `tokenizer.extract_latents`. The included SLURM job is the reference full-ImageNet extraction:
+
+```bash
+sbatch scripts/slurm_extract_full_imagenet.sbatch
+```
+
+Update its checkpoint, ImageNet root, output directory, and scheduler directives first. The output directory must contain `train_latents.npz` and `val_latents.npz` for AR training.
+
+## Tokenizer evaluation
+
+ImageNet should use torchvision `ImageFolder` layout:
+
+```text
+/path/to/imagenet/
+├── train/<class>/*.JPEG
+└── val/<class>/*.JPEG
+```
+
+Evaluate a checkpoint at one channel budget:
+
+```bash
+.venv/bin/python -m tokenizer.evaluate \
+  --checkpoint /path/to/tokenizer.ckpt \
+  --config /path/to/tokenizer.yaml \
   --data_dir /path/to/imagenet \
-  --output_dir ./latents_data/imagenet
-
-# Step 2: Train AR model (GPT-L) on extracted latents
-torchrun --nproc_per_node=8 -m generation.train \
-  --config configs/generation/gpt_l.yaml
-
-# Step 3: Generate images
-python -m generation.sample \
-  --config configs/generation/gpt_l.yaml \
-  --ckpt checkpoints/generation/gpt_l/latest.pt
+  --inference_t 512
 ```
 
-To verify the downstream AR training path from a fresh initialization on this
-cluster, submit the bounded smoke test:
+Evaluate several budgets:
 
 ```bash
-sbatch scripts/slurm_ar_smoke.sbatch
+.venv/bin/python -m tokenizer.evaluate_quantizer \
+  --ckpt /path/to/tokenizer.ckpt \
+  --config /path/to/tokenizer.yaml \
+  --data_dir /path/to/imagenet \
+  --budgets 64 128 256 512
 ```
 
-It extracts 256 token sequences from the mounted ImageNet validation set when
-needed, then trains a fresh GPT-Nano for 100 optimizer steps with local logging
-and no WandB dependency. The compatible 65K-token settings are in
-`configs/generation/smoke_65k.yaml`.
+## Tokenizer training
 
-## Project Structure
+Set `data.data_dir` and `output_dir` in `configs/tokenizer/channeltok_flex.yaml`, then run:
 
-```
-models/                  # Model definitions
-  vqgan_ae.py            # Encoder, Decoder, VQGANAutoencoder
-  helper.py              # ResidualBlock, NonLocalBlock, etc.
-  fsq.py, lfq.py         # Quantizers (FSQ, LFQ/BSQ)
-  latent_mask_head.py     # Adaptive channel masking
-  discriminator.py        # PatchGAN discriminator
-
-tokenizer/               # Tokenizer training, evaluation, extraction
-  train.py               # Training script
-  evaluate.py            # Reconstruction evaluation (PSNR, LPIPS, rFID)
-  evaluate_quantizer.py  # Multi-budget quantizer evaluation
-  extract_latents.py     # Latent extraction for AR training
-
-generation/              # Autoregressive image generation (LlamaGen)
-  train.py               # AR model training (DDP)
-  sample.py              # Variable-length image generation
-  decode_utils.py        # Token-to-image reconstruction
-  models/gpt.py          # GPT transformer architecture
-  models/generate.py     # Sampling utilities (top-k, nucleus)
-  dataset/imagenet_npz.py # Pre-extracted latent dataset loader
-
-utils/                   # Shared utilities
-  checkpoint.py          # Config and checkpoint loading
-  latent_extraction.py   # Extraction logic
-  losses.py              # Loss functions
-  lr_schedule.py         # Learning rate schedulers
-
-data.py                  # Data loader factory (ImageFolder, DALI/WebDataset)
-
-configs/
-  tokenizer/             # Tokenizer configs (channeltok_flex, channeltok_base)
-  generation/            # AR generation configs (GPT-B, GPT-L)
-  quantizers/            # Quantizer ablation configs (BSQ, FSQ, LFQ)
-  scale/                 # Model scale configs
-  sampling/              # Sampling strategy configs
-```
-
-## Data Loading
-
-Two data formats are supported:
-
-**ImageFolder** (default) — standard torchvision format, works everywhere:
 ```bash
-python -m tokenizer.evaluate --data_dir /path/to/imagenet ...
-# Directory should contain train/ and val/ subdirs with class folders
+.venv/bin/torchrun --nproc_per_node=8 \
+  -m tokenizer.train \
+  --config configs/tokenizer/channeltok_flex.yaml
 ```
 
-**WebDataset + DALI** — GPU-accelerated, for high-throughput training:
-```bash
-# Requires: uv sync --extra dali
-export IMAGENET_WDS_ROOT=/path/to/imagenet-1k-wds/
-python -m tokenizer.evaluate --dataset imagenet_wds ...
+## Repository map
+
+```text
+tokenizer/    tokenizer training, evaluation, and latent extraction
+generation/   autoregressive training, sampling, and distributed setup
+models/       tokenizer architecture and quantizers
+configs/      tokenizer, generation, scale, and experiment configs
+scripts/      SLURM jobs and evaluation utilities
+utils/        checkpoint, extraction, loss, and schedule helpers
 ```
 
-All CLI scripts accept `--dataset {imagefolder,imagenet_wds}` and `--data_dir` overrides.
+Optional WebDataset/DALI support is installed with `uv sync --extra dali`. Standard ImageFolder loading requires no optional dependencies.
 
 ## Citation
 
